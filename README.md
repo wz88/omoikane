@@ -34,22 +34,17 @@ export CPPFLAGS="-I$(brew --prefix openssl)/include"
 Install the package using pip
 
 ```bash
-pip install ciscoconfparse2
+uv add ciscoconfparse2
 ```
 
 ```bash
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Unix/macOS
-
-# Install the package
-pip install -e .
+uv sync
 ```
 
 ## Usage
 
 ```python
-from src.models.router import CiscoRouter
+from src.models import CiscoRouter
 
 # Create a router instance with config
 config = """
@@ -71,5 +66,5 @@ print(router.get_interface('GigabitEthernet0/0').description)  # WAN Interface
 
 To run tests:
 ```bash
-python -m pytest tests/
+uv run --dev pytest tests/ -v
 ```
