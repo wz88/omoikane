@@ -1,0 +1,190 @@
+hostname ROUTER-DC04
+
+! Basic System Configuration
+service password-encryption
+clock timezone MST -7
+clock summer-time MDT recurring
+
+! VRF Definitions
+vrf definition CUSTOMER_F
+ rd 65000:6
+ route-target export 65000:6
+ route-target import 65000:6
+ address-family ipv4
+  route-target export 65000:6
+  route-target import 65000:6
+ exit-address-family
+
+vrf definition CUSTOMER_G
+ rd 65000:7
+ route-target export 65000:7
+ route-target import 65000:7
+ address-family ipv4
+  route-target export 65000:7
+  route-target import 65000:7
+ exit-address-family
+
+! IP Prefix Lists
+ip prefix-list ALLOWED_PREFIXES seq 5 permit 10.0.0.0/8 le 24
+ip prefix-list ALLOWED_PREFIXES seq 10 permit 172.16.0.0/12 le 24
+ip prefix-list ALLOWED_PREFIXES seq 15 permit 192.168.0.0/16 le 24
+ip prefix-list ALLOWED_PREFIXES seq 20 deny 0.0.0.0/0 le 32
+
+! Route Maps
+route-map CUSTOMER_F_IMPORT permit 10
+ match ip address prefix-list ALLOWED_PREFIXES
+ set local-preference 200
+
+route-map CUSTOMER_G_IMPORT permit 10
+ match ip address prefix-list ALLOWED_PREFIXES
+ set local-preference 150
+
+! Access Lists
+ip access-list extended MGMT_ACCESS
+ permit tcp any host 192.168.4.1 eq 22
+ permit tcp any host 192.168.4.1 eq 443
+ permit icmp any any echo
+ permit icmp any any echo-reply
+ deny ip any any log
+
+ip access-list extended CUSTOMER_F_FILTER
+ permit ip 10.6.0.0 0.0.255.255 any
+ permit ip 172.16.0.0 0.0.255.255 any
+ deny ip any any log
+
+! FEX Configuration
+fex 401
+ pinning max-links 2
+ description "Customer F FEX"
+ type "Nexus-2248TP"
+
+fex 402
+ pinning max-links 2
+ description "Customer G FEX"
+ type "Nexus-2248TP"
+
+! Interface Configuration
+interface Loopback0
+ description Router ID Interface
+ ip address 4.4.4.4 255.255.255.255
+ ip ospf 1 area 0
+
+interface GigabitEthernet0/0
+ description WAN Interface
+ ip address 192.168.4.1 255.255.255.0
+ ip access-group MGMT_ACCESS in
+ duplex full
+ speed 1000
+ no shutdown
+
+interface GigabitEthernet0/1
+ description Customer F Interface
+ vrf forwarding CUSTOMER_F
+ ip address 10.6.1.1 255.255.255.0
+ ip access-group CUSTOMER_F_FILTER in
+ duplex full
+ speed 1000
+ no shutdown
+
+interface GigabitEthernet0/2
+ description Customer G Interface
+ vrf forwarding CUSTOMER_G
+ ip address 10.7.1.1 255.255.255.0
+ duplex full
+ speed 1000
+ no shutdown
+
+interface Ethernet401/1/1
+ description FEX401 Uplink
+ switchport mode trunk
+ switchport trunk allowed vlan 110-120
+ fex associate 401
+ no shutdown
+
+interface Ethernet402/1/1
+ description FEX402 Uplink
+ switchport mode trunk
+ switchport trunk allowed vlan 130-140
+ fex associate 402
+ no shutdown
+
+! VLAN Configuration
+vlan 110
+ name CUSTOMER_F_DATA
+ state active
+
+vlan 120
+ name CUSTOMER_F_VOICE
+ state active
+
+vlan 130
+ name CUSTOMER_G_DATA
+ state active
+
+vlan 140
+ name CUSTOMER_G_VOICE
+ state active
+
+! Routing Protocols
+router ospf 1
+ router-id 4.4.4.4
+ auto-cost reference-bandwidth 100000
+ area 0 authentication message-digest
+ passive-interface default
+ no passive-interface GigabitEthernet0/0
+ network 4.4.4.4 0.0.0.0 area 0
+ network 192.168.4.0 0.0.0.255 area 0
+ default-information originate always metric 10
+
+router bgp 65000
+ bgp router-id 4.4.4.4
+ bgp log-neighbor-changes
+ no bgp default ipv4-unicast
+ 
+ address-family ipv4 vrf CUSTOMER_F
+  redistribute connected
+  redistribute static
+  neighbor 10.6.1.2 remote-as 65006
+  neighbor 10.6.1.2 activate
+  neighbor 10.6.1.2 route-map CUSTOMER_F_IMPORT in
+  maximum-paths 2
+ exit-address-family
+
+ address-family ipv4 vrf CUSTOMER_G
+  redistribute connected
+  redistribute static
+  neighbor 10.7.1.2 remote-as 65007
+  neighbor 10.7.1.2 activate
+  neighbor 10.7.1.2 route-map CUSTOMER_G_IMPORT in
+  maximum-paths 2
+ exit-address-family
+
+! SNMP Configuration
+snmp-server community public RO
+snmp-server community private RW
+snmp-server location "Data Center 4"
+snmp-server contact "NOC Team"
+snmp-server enable traps bgp
+snmp-server enable traps ospf
+snmp-server host 192.168.4.100 version 2c public
+
+! AAA Configuration
+aaa new-model
+aaa authentication login default group tacacs+ local
+aaa authorization exec default group tacacs+ local
+aaa accounting exec default start-stop group tacacs+
+tacacs-server host 192.168.4.200
+tacacs-server key TACACS_KEY
+
+! Logging Configuration
+logging buffered 16384
+logging console critical
+logging monitor informational
+logging trap informational
+logging facility local6
+logging host 192.168.4.100
+logging host 192.168.4.101
+
+! NTP Configuration
+ntp server 192.168.4.200
+ntp server 192.168.4.201 prefer

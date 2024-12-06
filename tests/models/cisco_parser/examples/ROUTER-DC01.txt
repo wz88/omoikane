@@ -1,0 +1,248 @@
+hostname ROUTER-DC01
+
+! Basic System Configuration
+service password-encryption
+clock timezone PST -8
+clock summer-time PDT recurring
+
+! VRF Definitions
+vrf definition CUSTOMER_A
+ rd 65000:1
+ route-target export 65000:1
+ route-target import 65000:1
+ address-family ipv4
+  route-target export 65000:1
+  route-target import 65000:1
+ exit-address-family
+
+vrf definition CUSTOMER_B
+ rd 65000:2
+ route-target export 65000:2
+ route-target import 65000:2
+ address-family ipv4
+  route-target export 65000:2
+  route-target import 65000:2
+ exit-address-family
+
+! IP Prefix Lists
+ip prefix-list ALLOWED_PREFIXES seq 5 permit 10.0.0.0/8 le 24
+ip prefix-list ALLOWED_PREFIXES seq 10 permit 172.16.0.0/12 le 24
+ip prefix-list ALLOWED_PREFIXES seq 15 permit 192.168.0.0/16 le 24
+ip prefix-list ALLOWED_PREFIXES seq 20 deny 0.0.0.0/0 le 32
+
+! IP Community Lists
+ip community-list standard NO_EXPORT permit 65000:0
+ip community-list standard CUSTOMER_A permit 65000:100
+ip community-list standard CUSTOMER_B permit 65000:200
+
+! IP AS-Path Access Lists
+ip as-path access-list 100 permit ^65100_
+ip as-path access-list 100 deny .*
+ip as-path access-list 200 permit ^65200_
+ip as-path access-list 200 deny .*
+
+! Route Maps
+route-map CUSTOMER_A_IMPORT permit 10
+ description "Allow prefixes in ALLOWED_PREFIXES list"
+ match ip address prefix-list ALLOWED_PREFIXES
+ match community CUSTOMER_A
+ set local-preference 200
+ set weight 100
+ set origin igp
+
+route-map CUSTOMER_A_IMPORT permit 20
+ description "Allow other prefixes with lower preference"
+ match as-path 100
+ set local-preference 150
+ set weight 50
+ set community 65000:100 additive
+
+route-map CUSTOMER_A_IMPORT deny 100
+ description "Deny everything else"
+
+route-map CUSTOMER_A_EXPORT permit 10
+ description "Set attributes for exported routes"
+ match ip address prefix-list ALLOWED_PREFIXES
+ set community 65000:100 no-export additive
+ set as-path prepend 65000 65000
+ set metric 100
+
+route-map CUSTOMER_B_IMPORT permit 10
+ description "Allow prefixes in ALLOWED_PREFIXES list"
+ match ip address prefix-list ALLOWED_PREFIXES
+ match community CUSTOMER_B
+ set local-preference 150
+ set weight 100
+ set origin igp
+
+route-map CUSTOMER_B_IMPORT permit 20
+ description "Allow other prefixes with lower preference"
+ match as-path 200
+ set local-preference 100
+ set weight 50
+ set community 65000:200 additive
+
+route-map CUSTOMER_B_IMPORT deny 100
+ description "Deny everything else"
+
+route-map CUSTOMER_B_EXPORT permit 10
+ description "Set attributes for exported routes"
+ match ip address prefix-list ALLOWED_PREFIXES
+ set community 65000:200 no-export additive
+ set as-path prepend 65000
+ set metric 200
+
+! Access Lists
+ip access-list extended MGMT_ACCESS
+ permit tcp any host 192.168.1.1 eq 22
+ permit tcp any host 192.168.1.1 eq 443
+ permit icmp any any echo
+ permit icmp any any echo-reply
+ deny ip any any log
+
+ip access-list extended CUSTOMER_A_FILTER
+ permit ip 10.1.0.0 0.0.255.255 any
+ permit ip 172.16.0.0 0.0.255.255 any
+ deny ip any any log
+
+! FEX Configuration
+fex 101
+ pinning max-links 1
+ description "Customer A FEX"
+ type "Nexus-2248TP"
+
+fex 102
+ pinning max-links 1
+ description "Customer B FEX"
+ type "Nexus-2248TP"
+
+! Interface Configuration
+interface Loopback0
+ description Router ID Interface
+ ip address 1.1.1.1 255.255.255.255
+ ip ospf 1 area 0
+
+interface GigabitEthernet0/0
+ description WAN Interface
+ ip address 192.168.1.1 255.255.255.0
+ ip access-group MGMT_ACCESS in
+ duplex full
+ speed 1000
+ no shutdown
+ 
+interface GigabitEthernet0/1
+ description Customer A Interface
+ vrf forwarding CUSTOMER_A
+ ip address 10.1.1.1 255.255.255.0
+ ip access-group CUSTOMER_A_FILTER in
+ duplex full
+ speed 1000
+ no shutdown
+
+interface GigabitEthernet0/2
+ description Customer B Interface
+ vrf forwarding CUSTOMER_B
+ ip address 10.2.1.1 255.255.255.0
+ duplex full
+ speed 1000
+ no shutdown
+
+interface Ethernet101/1/1
+ description FEX101 Uplink
+ switchport mode trunk
+ switchport trunk allowed vlan 10-20
+ fex associate 101
+ no shutdown
+
+interface Ethernet102/1/1
+ description FEX102 Uplink
+ switchport mode trunk
+ switchport trunk allowed vlan 30-40
+ fex associate 102
+ no shutdown
+
+! VLAN Configuration
+vlan 10
+ name CUSTOMER_A_DATA
+ state active
+
+vlan 20
+ name CUSTOMER_A_VOICE
+ state active
+
+vlan 30
+ name CUSTOMER_B_DATA
+ state active
+
+vlan 40
+ name CUSTOMER_B_VOICE
+ state active
+
+! Routing Protocols
+router ospf 1
+ router-id 1.1.1.1
+ auto-cost reference-bandwidth 100000
+ area 0 authentication message-digest
+ passive-interface default
+ no passive-interface GigabitEthernet0/0
+ network 1.1.1.1 0.0.0.0 area 0
+ network 192.168.1.0 0.0.0.255 area 0
+ default-information originate always metric 10
+
+router bgp 65000
+ bgp router-id 1.1.1.1
+ bgp log-neighbor-changes
+ no bgp default ipv4-unicast
+ 
+ address-family ipv4 vrf CUSTOMER_A
+  redistribute connected
+  redistribute static
+  neighbor 10.1.1.2 remote-as 65001
+  neighbor 10.1.1.2 activate
+  neighbor 10.1.1.2 route-map CUSTOMER_A_IMPORT in
+  neighbor 10.1.1.2 route-map CUSTOMER_A_EXPORT out
+  maximum-paths 2
+ exit-address-family
+ 
+ address-family ipv4 vrf CUSTOMER_B
+  redistribute connected
+  redistribute static
+  neighbor 10.2.1.2 remote-as 65002
+  neighbor 10.2.1.2 activate
+  neighbor 10.2.1.2 route-map CUSTOMER_B_IMPORT in
+  neighbor 10.2.1.2 route-map CUSTOMER_B_EXPORT out
+  maximum-paths 2
+ exit-address-family
+
+! SNMP Configuration
+snmp-server community public RO
+snmp-server community private RW
+snmp-server location "Data Center 1"
+snmp-server contact "NOC Team"
+snmp-server enable traps bgp
+snmp-server enable traps ospf
+snmp-server host 192.168.1.100 version 2c public
+
+! NTP Configuration
+ntp authentication-key 1 md5 secretkey
+ntp trusted-key 1
+ntp server 192.168.1.200 key 1 prefer
+ntp server 192.168.1.201 key 1
+
+! Syslog Configuration
+logging buffered 16384
+logging console critical
+logging monitor informational
+logging trap informational
+logging facility local6
+logging host 192.168.1.100
+logging host 192.168.1.101
+
+! AAA Configuration
+aaa new-model
+aaa authentication login default group tacacs+ local
+aaa authorization exec default group tacacs+ local
+aaa accounting exec default start-stop group tacacs+
+tacacs-server host 192.168.1.150 key secretkey
+tacacs-server timeout 5
+tacacs-server directed-request

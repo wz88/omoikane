@@ -1,0 +1,52 @@
+[project]
+name = "kraken"
+version = "0.1.0"
+description = "Cisco configuration parser using Pydantic and ciscoconfparse2"
+requires-python = ">=3.9"
+dependencies = [
+    "pydantic>=2.0.0",
+    "ciscoconfparse2>=0.7.74",
+    "typing-extensions>=4.0.0",
+    "textfsm>=1.1.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/models"]
+
+[tool.ruff]
+# Line length configuration
+line-length = 120
+
+# General configurations
+src = ["src"]
+fix = true
+unsafe-fixes = false
+
+[tool.ruff.lint]
+# Enable rules
+select = ["E", "F", "I"]  # E and F are enabled by default, I enables import sorting
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["models"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+combine-as-imports = true
+
+[tool.pytest.ini_options]
+pythonpath = [
+    ".",
+    "src"
+]
+testpaths = [
+    "tests"
+]
