@@ -292,8 +292,8 @@ class CiscoRouter:
     def _process_interfaces(self, parse: CiscoConfParse) -> Dict[str, Interface]:
         """Process interface information."""
         interfaces = {}
-        for interface in parse.find_objects(r'^interface\s+\S+'):
-            name = interface.text.split()[1]
+        for interface in parse.find_objects(r'^interface\s+\S+(?:\s+\S+)?'):
+            name = ' '.join(interface.text.split()[1:])
             description = None
             ip_address = None
             subnet_mask = None
@@ -1097,4 +1097,7 @@ class CiscoRouter:
         return self.config.fex.get(str(fex_id))
     
     def __str__(self) -> str:
+        return f"CiscoRouter(hostname={self.config.hostname}, interfaces={len(self.config.interfaces)})"
+
+    def __repr__(self) -> str:
         return f"CiscoRouter(hostname={self.config.hostname}, interfaces={len(self.config.interfaces)})"

@@ -13,7 +13,13 @@ def router():
 
 def test_router_str(router):
     """Test __str__ method."""
-    assert str(router) == "CiscoRouter(hostname=ROUTER-DC01, interfaces=6)"
+    assert str(router) == "CiscoRouter(hostname=ROUTER-DC01, interfaces=10)"
+
+def test_router_repr(router):
+    """Test __repr__ method."""
+    # The router fixture has hostname ROUTER-DC01 and 10 interfaces (Loopback0, Gi0/0-2, Eth101/1/1, Eth102/1/1, Vlan10-40)
+    expected_repr = "CiscoRouter(hostname=ROUTER-DC01, interfaces=10)"
+    assert repr(router) == expected_repr
 
 def test_router_hostname(router):
     """Test basic router attributes."""
@@ -683,6 +689,37 @@ def test_bgp_vrf_config_getitem(router):
     assert len(customer_a_bgp["neighbors"]) == 1
     assert customer_a_bgp["redistribute"] == ["connected", "static"]
     assert customer_a_bgp["maximum_paths"] == 2
+
+def test_interface_with_spaces(router):
+    """Test parsing interfaces with spaces in their names."""
+    # Test VLAN interfaces
+    vlan10 = router.get_interface('Vlan 10')
+    assert vlan10 is not None
+    assert vlan10.description == "CUSTOMER_A_DATA_SVI"
+    assert vlan10.vrf == "CUSTOMER_A"
+    assert vlan10.ip_address == "10.10.10.1"
+    assert vlan10.subnet_mask == "255.255.255.0"
+
+    vlan20 = router.get_interface('Vlan 20')
+    assert vlan20 is not None
+    assert vlan20.description == "CUSTOMER_A_VOICE_SVI"
+    assert vlan20.vrf == "CUSTOMER_A"
+    assert vlan20.ip_address == "10.20.20.1"
+    assert vlan20.subnet_mask == "255.255.255.0"
+
+    vlan30 = router.get_interface('Vlan 30')
+    assert vlan30 is not None
+    assert vlan30.description == "CUSTOMER_B_DATA_SVI"
+    assert vlan30.vrf == "CUSTOMER_B"
+    assert vlan30.ip_address == "10.30.30.1"
+    assert vlan30.subnet_mask == "255.255.255.0"
+
+    vlan40 = router.get_interface('Vlan 40')
+    assert vlan40 is not None
+    assert vlan40.description == "CUSTOMER_B_VOICE_SVI"
+    assert vlan40.vrf == "CUSTOMER_B"
+    assert vlan40.ip_address == "10.40.40.1"
+    assert vlan40.subnet_mask == "255.255.255.0"
 
 if __name__ == "__main__":
     pytest.main([__file__])
