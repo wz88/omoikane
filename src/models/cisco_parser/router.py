@@ -41,6 +41,10 @@ class PrefixList(BaseModel):
     name: str
     entries: List[PrefixListEntry] = Field(default_factory=list)
 
+    def __getitem__(self, key: str) -> Any:
+        """Make the model behave like a dictionary."""
+        return getattr(self, key)
+
 class RouteMapEntry(BaseModel):
     """Model for route-map entry."""
     sequence: int
@@ -79,12 +83,20 @@ class Interface(BaseModel):
     allowed_vlans: Optional[str] = None
     fex_associate: Optional[int] = None
 
+    def __getitem__(self, key: str) -> Any:
+        """Make the model behave like a dictionary."""
+        return getattr(self, key)
+
 class VlanConfig(BaseModel):
     """Model for VLAN configuration."""
     vlan_id: int
-    name: str
+    name: Optional[str] = None
     state: str = "active"
     interfaces: List[str] = Field(default_factory=list)
+
+    def __getitem__(self, key: str) -> Any:
+        """Make the model behave like a dictionary."""
+        return getattr(self, key)
 
 class VrfConfig(BaseModel):
     """Model for VRF configuration."""
@@ -183,7 +195,9 @@ class NtpServer(BaseModel):
     """Model for NTP server configuration."""
     server: str
     key: Optional[str] = None
-    prefer: bool = False
+    prefer: Optional[bool] = None
+    source_interface: Optional[str] = None
+    vrf: Optional[str] = None
 
     def __getitem__(self, key: str) -> Any:
         """Make the model behave like a dictionary."""
@@ -232,12 +246,12 @@ class RouterConfig(BaseModel):
     prefix_lists: Dict[str, PrefixList] = Field(default_factory=dict)
     route_maps: Dict[str, RouteMap] = Field(default_factory=dict)
     bgp: Optional[BgpConfig] = None
-    ospf: Dict[int, OspfConfig] = Field(default_factory=dict)
+    ospf: Dict[str, OspfConfig] = Field(default_factory=dict)
     snmp: SnmpConfig = Field(default_factory=SnmpConfig)
     ntp_servers: List[NtpServer] = Field(default_factory=list)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     aaa: AaaConfig = Field(default_factory=AaaConfig)
-    fex: Dict[int, FexConfig] = Field(default_factory=dict)
+    fex: Dict[str, FexConfig] = Field(default_factory=dict)
     community_lists: Dict[str, CommunityList] = Field(default_factory=dict)
     as_path_lists: Dict[str, AsPathList] = Field(default_factory=dict)
 
@@ -391,7 +405,7 @@ class CiscoRouter:
         vlans = {}
         for vlan in parse.find_objects(r'^vlan\s+\d+'):
             vlan_id = int(vlan.text.split()[1])
-            name = 'VLAN' + str(vlan_id)
+            name = None
             state = 'active'
 
             for line in vlan.children:
@@ -696,7 +710,7 @@ class CiscoRouter:
             vrf_configs=vrf_configs
         )
 
-    def _process_ospf(self, parse: CiscoConfParse) -> Dict[int, OspfConfig]:
+    def _process_ospf(self, parse: CiscoConfParse) -> Dict[str, OspfConfig]:
         """Process OSPF information."""
         ospf_configs = {}
         for ospf in parse.find_objects(r'^router ospf'):
@@ -743,7 +757,7 @@ class CiscoRouter:
                         area, auth_type = match.groups()
                         area_auth[area] = auth_type
 
-            ospf_configs[process_id] = OspfConfig(
+            ospf_configs[str(process_id)] = OspfConfig(
                 process_id=process_id,
                 router_id=router_id,
                 reference_bandwidth=reference_bandwidth,
@@ -938,14 +952,14 @@ class CiscoRouter:
             tacacs=tacacs
         )
 
-    def _process_fex(self, parse: CiscoConfParse) -> Dict[int, FexConfig]:
+    def _process_fex(self, parse: CiscoConfParse) -> Dict[str, FexConfig]:
         """Process FEX information."""
         fex_configs = {}
         
         for line in parse.find_objects(r'^fex\s+\d+'):
             match = re.match(r'fex\s+(\d+)', line.text)
             if match:
-                fex_id = int(match.group(1))
+                fex_id = match.group(1)
                 description = None
                 fex_type = None
                 serial = None
@@ -1062,7 +1076,7 @@ class CiscoRouter:
         return self.config.bgp
     
     @property
-    def ospf_config(self) -> Dict[int, OspfConfig]:
+    def ospf_config(self) -> Dict[str, OspfConfig]:
         """Return all OSPF processes configured on the router."""
         return self.config.ospf
     
@@ -1078,9 +1092,9 @@ class CiscoRouter:
         """Get VLAN configuration by ID."""
         return self.config.vlans.get(vlan_id)
     
-    def get_fex(self, fex_id: int) -> Optional[Any]:
+    def get_fex(self, fex_id: str) -> Optional[Any]:
         """Get FEX configuration by ID."""
-        return self.config.fex.get(fex_id)
+        return self.config.fex.get(str(fex_id))
     
     def __str__(self) -> str:
         return f"CiscoRouter(hostname={self.config.hostname}, interfaces={len(self.config.interfaces)})"

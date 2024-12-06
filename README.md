@@ -31,14 +31,14 @@ export LDFLAGS="-L$(brew --prefix openssl)/lib"
 export CPPFLAGS="-I$(brew --prefix openssl)/include"
 ```
 
-Install the package using pip
+Install the packages using pip
 
 ```bash
-uv add ciscoconfparse2
+uv pip install -e .
 ```
 
 ```bash
-uv sync
+uv pip install -e ".[dev]"
 ```
 
 ## Usage
@@ -67,4 +67,9 @@ print(router.get_interface('GigabitEthernet0/0').description)  # WAN Interface
 To run tests:
 ```bash
 uv run --dev pytest tests/ -v
+```
+
+To run coverage:
+```bash
+uv run --dev pytest --cov=src --cov-report=term-missing tests/
 ```

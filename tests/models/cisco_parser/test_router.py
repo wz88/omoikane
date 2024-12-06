@@ -11,6 +11,10 @@ def router():
     # Create router instance
     return CiscoRouter(config_text)
 
+def test_router_str(router):
+    """Test __str__ method."""
+    assert str(router) == "CiscoRouter(hostname=ROUTER-DC01, interfaces=6)"
+
 def test_router_hostname(router):
     """Test basic router attributes."""
     assert router.config.hostname == "ROUTER-DC01"
@@ -80,15 +84,17 @@ def test_vlan10(router):
     """Test VLAN 10."""
     vlan10 = router.get_vlan(10)
     assert vlan10 is not None
-    assert vlan10.name == "CUSTOMER_A_DATA"
-    assert vlan10.state == "active"
+    assert vlan10["vlan_id"] == 10
+    assert vlan10["name"] == "CUSTOMER_A_DATA"
+    assert vlan10["state"] == "active"
 
 def test_vlan20(router):
     """Test VLAN 20."""
     vlan20 = router.get_vlan(20)
     assert vlan20 is not None
-    assert vlan20.name == "CUSTOMER_A_VOICE"
-    assert vlan20.state == "active"
+    assert vlan20["vlan_id"] == 20
+    assert vlan20["name"] == "CUSTOMER_A_VOICE"
+    assert vlan20["state"] == "active"
 
 def test_fex_units(router):
     """Test FEX units."""
@@ -115,8 +121,13 @@ def test_bgp_config(router):
     """Test BGP configuration."""
     bgp_config = router.bgp_config
     assert bgp_config is not None
+    # Test direct property access
     assert bgp_config.as_number == 65000
     assert bgp_config.router_id == "1.1.1.1"
+    # Test dictionary-style access
+    assert bgp_config["as_number"] == 65000
+    assert bgp_config["asn"] == 65000
+    assert bgp_config["router_id"] == "1.1.1.1"
 
 def test_customer_a_bgp(router):
     """Test BGP VRF CUSTOMER_A configuration."""
@@ -125,15 +136,15 @@ def test_customer_a_bgp(router):
     assert customer_a_bgp is not None
     assert len(customer_a_bgp.neighbors) == 1
     neighbor = customer_a_bgp.neighbors[0]
-    assert neighbor.address == "10.1.1.2"
-    assert neighbor.remote_as == 65001
-    assert neighbor.route_maps['in'] == "CUSTOMER_A_IMPORT"
+    assert neighbor.address == neighbor["address"] == "10.1.1.2"
+    assert neighbor.remote_as == neighbor["remote_as"] == 65001
+    assert neighbor.route_maps['in'] == neighbor["route_maps"]['in'] == "CUSTOMER_A_IMPORT"
 
 def test_ospf_config(router):
     """Test OSPF configuration."""
     ospf_configs = router.ospf_config
     assert len(ospf_configs) == 1  # One OSPF process
-    ospf_config = ospf_configs[1]  # Process ID 1
+    ospf_config = ospf_configs["1"]  # Process ID 1
     assert ospf_config is not None
     assert ospf_config.process_id == 1
     assert ospf_config.router_id == "1.1.1.1"
@@ -354,6 +365,7 @@ def test_acls(router):
     assert https_entry.protocol == 'tcp'
     assert https_entry.source_ip == 'any'
     assert https_entry.destination_ip == '192.168.1.1'
+    assert https_entry.destination_wildcard is None
     assert https_entry.destination_port == '443'
     assert not https_entry.log
 
@@ -405,6 +417,41 @@ def test_acls(router):
     assert deny_entry.source_ip == 'any'
     assert deny_entry.destination_ip == 'any'
     assert deny_entry.log
+
+def test_mgmt_access_acl(router):
+    """Test MGMT_ACCESS ACL specifically."""
+    # Test dictionary-like access
+    mgmt_acl = router.acls["MGMT_ACCESS"]
+    assert mgmt_acl is not None
+    
+    # Test __getitem__ method directly
+    assert mgmt_acl["type"] == 'extended'
+    assert len(mgmt_acl.entries) == 5
+
+    # Verify SSH entry
+    assert mgmt_acl.entries[0].action == 'permit'
+    assert mgmt_acl.entries[0].protocol == 'tcp'
+    assert mgmt_acl.entries[0].destination_port == '22'
+
+    # Verify HTTPS entry
+    assert mgmt_acl.entries[1].action == 'permit'
+    assert mgmt_acl.entries[1].protocol == 'tcp'
+    assert mgmt_acl.entries[1].destination_port == '443'
+
+    # Verify ICMP echo entry
+    assert mgmt_acl.entries[2].action == 'permit'
+    assert mgmt_acl.entries[2].protocol == 'icmp'
+    assert mgmt_acl.entries[2].protocol_option == 'echo'
+
+    # Verify ICMP echo-reply entry
+    assert mgmt_acl.entries[3].action == 'permit'
+    assert mgmt_acl.entries[3].protocol == 'icmp'
+    assert mgmt_acl.entries[3].protocol_option == 'echo-reply'
+
+    # Verify deny entry
+    assert mgmt_acl.entries[4].action == 'deny'
+    assert mgmt_acl.entries[4].protocol == 'ip'
+    assert mgmt_acl.entries[4].log is True
 
 def test_snmp_config(router):
     """Test SNMP configuration."""
@@ -566,6 +613,76 @@ def test_as_path_list_references(router):
     entry = customer_b_import.entries[1]
     assert 'as-path' in entry.match_statements
     assert entry.match_statements['as-path'] == ['200']
+
+def test_prefix_list_getitem(router):
+    """Test PrefixList __getitem__ method."""
+    prefix_list = router.prefix_lists["ALLOWED_PREFIXES"]
+    assert prefix_list["name"] == "ALLOWED_PREFIXES"
+    # Test accessing entries directly
+    assert isinstance(prefix_list["entries"], list)
+
+def test_fex_config_getitem(router):
+    """Test FexConfig __getitem__ method."""
+    fex = router.config.fex["101"]
+    assert fex["description"] == "Customer A FEX"
+    assert fex["type"] == "Nexus-2248TP"
+    assert fex["serial"] is None
+    assert fex["max_links"] == 1
+
+def test_interface_getitem(router):
+    """Test Interface __getitem__ method."""
+    interface = router.get_interface("GigabitEthernet0/0")
+    assert interface["name"] == "GigabitEthernet0/0"
+    assert interface["description"] == "WAN Interface"
+    assert interface["ip_address"] == "192.168.1.1"
+    assert interface["subnet_mask"] == "255.255.255.0"
+    assert interface["enabled"] is False
+    assert interface["speed"] == "1000"
+    assert interface["duplex"] == "full"
+    assert interface["vrf"] is None
+    assert interface["access_groups"]["in"] == "MGMT_ACCESS"
+
+def test_vrf_config_getitem(router):
+    """Test VrfConfig __getitem__ method."""
+    vrf = router.get_vrf("CUSTOMER_A")
+    assert vrf["name"] == "CUSTOMER_A"
+    assert vrf["rd"] == "65000:1"
+    assert vrf["route_targets"]["import"] == ["65000:1"]
+    assert vrf["route_targets"]["export"] == ["65000:1"]
+    assert "GigabitEthernet0/1" in vrf["interfaces"]
+
+def test_bgp_config_getitem(router):
+    """Test BgpConfig __getitem__ method."""
+    bgp = router.config.bgp
+    assert bgp is not None
+    assert bgp["asn"] == 65000
+    assert bgp["as_number"] == 65000  # Test the as_number alias
+    assert bgp["router_id"] == "1.1.1.1"
+
+def test_vlan_config_getitem(router):
+    """Test VlanConfig __getitem__ method."""
+    vlan = router.get_vlan(10)  # Using VLAN 10 from the test fixture
+    assert vlan is not None
+    assert vlan["vlan_id"] == 10
+    assert vlan["name"] == "CUSTOMER_A_DATA"
+    assert vlan["state"] == "active"
+
+def test_ntp_server_getitem(router):
+    """Test NtpServer __getitem__ method."""
+    ntp_server = router.config.ntp_servers[0]
+    assert ntp_server["server"] == "192.168.1.200"
+    assert ntp_server["key"] == "1"
+    assert ntp_server["prefer"] is True
+
+def test_bgp_vrf_config_getitem(router):
+    """Test BgpVrfConfig __getitem__ method."""
+    bgp_config = router.bgp_config
+    customer_a_bgp = bgp_config.vrf_configs.get('CUSTOMER_A')
+    assert customer_a_bgp is not None
+    assert customer_a_bgp["rd"] is None
+    assert len(customer_a_bgp["neighbors"]) == 1
+    assert customer_a_bgp["redistribute"] == ["connected", "static"]
+    assert customer_a_bgp["maximum_paths"] == 2
 
 if __name__ == "__main__":
     pytest.main([__file__])
