@@ -8,7 +8,7 @@ def router():
     with open('tests/models/cisco_parser/examples/ROUTER-DC01.txt', 'r') as f:
         config_text = f.read()
 
-    # Create router instance
+    # Create router instance with config_text as the first parameter
     return CiscoRouter(config_text)
 
 def test_router_str(router):

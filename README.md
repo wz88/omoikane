@@ -1,4 +1,4 @@
-# Kraken - Cisco Configuration Parser
+# Omoikane - Cisco Configuration Parser
 
 A Python library for parsing and managing network device configurations using Pydantic models and Ansible-like parsing capabilities.
 

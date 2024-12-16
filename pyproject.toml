@@ -1,5 +1,5 @@
 [project]
-name = "kraken"
+name = "omoikane"
 version = "0.1.0"
 description = "Cisco configuration parser using Pydantic and ciscoconfparse2"
 requires-python = ">=3.9"
@@ -48,4 +48,9 @@ pythonpath = [
 ]
 testpaths = [
     "tests"
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3.4",
 ]

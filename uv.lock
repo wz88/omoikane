@@ -177,31 +177,6 @@ wheels = [
 ]
 
 [[package]]
-name = "kraken"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "ciscoconfparse2" },
-    { name = "pydantic" },
-    { name = "typing-extensions" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-cov" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ciscoconfparse2", specifier = ">=0.7.74" },
-    { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.4" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
-    { name = "typing-extensions", specifier = ">=4.0.0" },
-]
-
-[[package]]
 name = "loguru"
 version = "0.7.2"
 source = { registry = "https://pypi.org/simple" }
@@ -243,6 +218,39 @@ sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec9
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979 },
 ]
+
+[[package]]
+name = "omoikane"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "ciscoconfparse2" },
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ciscoconfparse2", specifier = ">=0.7.74" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.4" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
+    { name = "typing-extensions", specifier = ">=4.0.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8.3.4" }]
 
 [[package]]
 name = "packaging"
