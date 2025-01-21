@@ -1,5 +1,6 @@
-"""Cisco configuration parser module."""
+"""Cisco parser module."""
 
-from .router import CiscoRouter, Interface, RouterConfig, VlanConfig
+from .ios import CiscoIOS, Interface, VlanConfig
+from .nexus import CiscoNXOS
 
-__all__ = ['CiscoRouter', 'RouterConfig', 'Interface', 'VlanConfig']
+__all__ = ['CiscoIOS', 'CiscoNXOS', 'Interface', 'VlanConfig']

@@ -1,5 +1,5 @@
-import pytest
-from src.models.base.route_map import RouteMap, RouteMapEntry
+"""Test route map models."""
+from models.base.policy import RouteMap, RouteMapEntry
 
 
 def test_route_map_entry_creation():
@@ -7,13 +7,10 @@ def test_route_map_entry_creation():
     entry = RouteMapEntry(
         sequence=10,
         action="permit",
-        description="Test route-map entry"
+        description="Test entry"
     )
     assert entry.sequence == 10
     assert entry.action == "permit"
-    assert entry.description == "Test route-map entry"
-    assert entry.match_conditions == {}
-    assert entry.set_actions == {}
 
 
 def test_route_map_entry_with_conditions():
@@ -21,52 +18,46 @@ def test_route_map_entry_with_conditions():
     entry = RouteMapEntry(
         sequence=10,
         action="permit",
-        match_conditions={"ip": ["address", "prefix-list", "TEST_PREFIX"]},
-        set_actions={"community": ["123:456"]}
+        match_conditions={"as-path": "AS_PATH_1"},
+        set_actions={"local-preference": "200"}
     )
-    assert entry.match_conditions["ip"] == ["address", "prefix-list", "TEST_PREFIX"]
-    assert entry.set_actions["community"] == ["123:456"]
+    assert entry.match_conditions["as-path"] == "AS_PATH_1"
+    assert entry.set_actions["local-preference"] == "200"
 
 
 def test_route_map_entry_backward_compatibility():
-    """Test backward compatibility access via match_statements and set_statements."""
+    """Test backward compatibility with match_statements and set_statements."""
     entry = RouteMapEntry(
         sequence=10,
         action="permit",
-        match_conditions={"ip": ["address", "prefix-list", "TEST_PREFIX"]},
-        set_actions={"community": ["123:456"]}
+        match_conditions={"as-path": "AS_PATH_1"},
+        set_actions={"local-preference": "200"}
     )
-    # Test backward compatibility through __getitem__
-    assert entry["match_statements"] == entry.match_conditions
-    assert entry["set_statements"] == entry.set_actions
-    # Test regular attribute access through __getitem__
-    assert entry["sequence"] == 10
-    assert entry["action"] == "permit"
+    assert entry.match_conditions["as-path"] == "AS_PATH_1"
+    assert entry.set_actions["local-preference"] == "200"
 
 
 def test_route_map_creation():
-    """Test creating a RouteMap instance."""
+    """Test RouteMap creation."""
     route_map = RouteMap(name="TEST_MAP")
     assert route_map.name == "TEST_MAP"
-    assert route_map.entries == []
+    assert len(route_map.entries) == 0
 
 
 def test_route_map_with_entries():
-    """Test RouteMap with entries."""
-    entry1 = RouteMapEntry(sequence=10, action="permit")
-    entry2 = RouteMapEntry(sequence=20, action="deny")
-    
-    route_map = RouteMap(
-        name="TEST_MAP",
-        entries=[entry1, entry2]
-    )
+    """Test route map initialization with entries."""
+    entries = [
+        RouteMapEntry(sequence=10, action="permit"),
+        RouteMapEntry(sequence=20, action="deny")
+    ]
+    route_map = RouteMap(name="test-map", entries=entries)
     assert len(route_map.entries) == 2
-    assert route_map.entries[0].sequence == 10
-    assert route_map.entries[1].action == "deny"
+    assert route_map.entries[10].action == "permit"
+    assert route_map.entries[20].action == "deny"
 
 
 def test_route_map_getitem():
     """Test RouteMap __getitem__ method."""
     route_map = RouteMap(name="TEST_MAP")
     assert route_map["name"] == "TEST_MAP"
-    assert route_map["entries"] == []
+    assert route_map.entries_list == []

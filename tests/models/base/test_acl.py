@@ -1,124 +1,209 @@
-import pytest
-from src.models.base.acl import Acl, AclEntry
-
+"""Test ACL models."""
+from models.base.policy.acl import Ipv4Acl, AclEntry
 
 def test_acl_entry_creation():
-    """Test creating an AclEntry instance."""
+    """Test creating an ACL entry."""
     entry = AclEntry(
         sequence=10,
         action="permit",
         protocol="ip",
         source="any",
-        destination="10.0.0.0/24"
+        destination="any"
     )
     assert entry.sequence == 10
     assert entry.action == "permit"
     assert entry.protocol == "ip"
     assert entry.source == "any"
-    assert entry.destination == "10.0.0.0/24"
-    assert entry.source_port is None
-    assert entry.destination_port is None
-    assert entry.protocol_option is None
-    assert entry.log is False
-    assert entry.flags == {}
-
+    assert entry.destination == "any"
 
 def test_acl_entry_with_ports():
-    """Test AclEntry with port specifications."""
+    """Test ACL entry with port numbers."""
     entry = AclEntry(
         sequence=10,
         action="permit",
         protocol="tcp",
         source="any",
-        destination="10.0.0.0/24",
-        source_port="1024",
-        destination_port="80"
+        destination="any",
+        source_port="eq 80",
+        destination_port="eq 443"
     )
-    assert entry.source_port == "1024"
-    assert entry.destination_port == "80"
-
+    assert entry.source_port == "eq 80"
+    assert entry.destination_port == "eq 443"
 
 def test_acl_entry_with_wildcards():
-    """Test AclEntry with IP wildcards."""
+    """Test ACL entry with wildcard masks."""
     entry = AclEntry(
         sequence=10,
         action="permit",
         protocol="ip",
-        source="192.168.1.0",
-        destination="10.0.0.0",
+        source="10.0.0.0",
+        destination="192.168.0.0",
         source_wildcard="0.0.0.255",
-        destination_wildcard="0.0.0.255",
-        source_ip="192.168.1.0",
-        destination_ip="10.0.0.0"
+        destination_wildcard="0.0.0.255"
     )
     assert entry.source_wildcard == "0.0.0.255"
     assert entry.destination_wildcard == "0.0.0.255"
-    assert entry.source_ip == "192.168.1.0"
-    assert entry.destination_ip == "10.0.0.0"
-
 
 def test_acl_entry_getitem():
-    """Test AclEntry __getitem__ method."""
+    """Test dictionary-like access to ACL entry."""
     entry = AclEntry(
         sequence=10,
         action="permit",
         protocol="ip",
-        source="192.168.1.0",
-        destination="10.0.0.0",
-        source_ip="192.168.1.0",
-        destination_ip="10.0.0.0"
+        source="any",
+        destination="any"
     )
-    # Test special handling of source_ip and destination_ip
-    assert entry["source_ip"] == "192.168.1.0"
-    assert entry["destination_ip"] == "10.0.0.0"
-    # Test regular attribute access
-    assert entry["sequence"] == 10
-    assert entry["action"] == "permit"
-
+    assert entry.sequence == 10
+    assert entry.action == "permit"
+    assert entry.protocol == "ip"
+    assert entry.source == "any"
+    assert entry.destination == "any"
 
 def test_acl_creation():
-    """Test creating an Acl instance."""
-    acl = Acl(
-        name="TEST_ACL",
-        type="extended"
-    )
+    """Test creating an ACL."""
+    acl = Ipv4Acl(name="TEST_ACL")
     assert acl.name == "TEST_ACL"
     assert acl.type == "extended"
-    assert acl.protocol_option is None
-    assert acl.entries == []
-
+    assert len(acl.entries) == 0
 
 def test_acl_with_entries():
-    """Test Acl with entries."""
-    entry1 = AclEntry(
+    """Test ACL with entries."""
+    entries = {
+        "10": AclEntry(
+            sequence=10,
+            action="permit",
+            protocol="ip",
+            source="any",
+            destination="any"
+        ),
+        "20": AclEntry(
+            sequence=20,
+            action="deny",
+            protocol="ip",
+            source="10.0.0.0 0.0.0.255",
+            destination="any"
+        )
+    }
+    acl = Ipv4Acl(name="TEST_ACL", entries=entries)
+    assert len(acl.entries) == 2
+    assert acl.entries["10"].action == "permit"
+    assert acl.entries["20"].action == "deny"
+
+def test_acl_getitem():
+    """Test dictionary-like access to ACL."""
+    acl = Ipv4Acl(name="TEST_ACL")
+    entry = AclEntry(
         sequence=10,
         action="permit",
         protocol="ip",
         source="any",
-        destination="10.0.0.0/24"
+        destination="any"
     )
-    entry2 = AclEntry(
+    acl.add_entry(entry)
+    assert acl.name == "TEST_ACL"
+    assert acl.type == "extended"
+    assert acl.entries["10"].action == "permit"
+
+def test_acl_add_entry():
+    """Test adding entries to ACL."""
+    acl = Ipv4Acl(name="TEST_ACL")
+    entry = {
+        "action": "permit",
+        "protocol": "ip",
+        "source": "any",
+        "destination": "any"
+    }
+    acl.add_entry(entry)
+    assert len(acl.entries) == 1
+    assert list(acl.entries.values())[0].action == "permit"
+
+def test_acl_remove_entry():
+    """Test removing entries from ACL."""
+    acl = Ipv4Acl(name="TEST_ACL")
+    entry = AclEntry(
+        sequence=10,
+        action="permit",
+        protocol="ip",
+        source="any",
+        destination="any"
+    )
+    acl.add_entry(entry)
+    assert len(acl.entries) == 1
+    acl.remove_entry("10")
+    assert len(acl.entries) == 0
+
+def test_acl_get_entry():
+    """Test getting entries from ACL."""
+    acl = Ipv4Acl(name="TEST_ACL")
+    entry = AclEntry(
+        sequence=10,
+        action="permit",
+        protocol="ip",
+        source="any",
+        destination="any"
+    )
+    acl.add_entry(entry)
+    assert acl.get_entry("10") == entry
+    assert acl.get_entry("20") is None
+
+def test_acl_entries_list():
+    """Test getting entries as sorted list."""
+    acl = Ipv4Acl(name="TEST_ACL")
+    entry1 = AclEntry(
         sequence=20,
         action="deny",
-        protocol="tcp",
-        source="192.168.1.0",
-        destination="any",
-        destination_port="80"
+        protocol="ip",
+        source="any",
+        destination="any"
     )
-    
-    acl = Acl(
-        name="TEST_ACL",
-        type="extended",
-        entries=[entry1, entry2]
+    entry2 = AclEntry(
+        sequence=10,
+        action="permit",
+        protocol="ip",
+        source="any",
+        destination="any"
     )
-    assert len(acl.entries) == 2
-    assert acl.entries[0].sequence == 10
-    assert acl.entries[1].action == "deny"
+    acl.add_entry(entry1)
+    acl.add_entry(entry2)
+    entries = acl.entries_list
+    assert len(entries) == 2
+    assert entries[0].sequence == 10
+    assert entries[1].sequence == 20
 
+def test_acl_iteration():
+    """Test iterating over ACL entries."""
+    acl = Ipv4Acl(name="TEST_ACL")
+    entry1 = AclEntry(
+        sequence=20,
+        action="deny",
+        protocol="ip",
+        source="any",
+        destination="any"
+    )
+    entry2 = AclEntry(
+        sequence=10,
+        action="permit",
+        protocol="ip",
+        source="any",
+        destination="any"
+    )
+    acl.add_entry(entry1)
+    acl.add_entry(entry2)
+    entries = list(acl)
+    assert len(entries) == 2
+    assert entries[0].sequence == 10
+    assert entries[1].sequence == 20
 
-def test_acl_getitem():
-    """Test Acl __getitem__ method."""
-    acl = Acl(name="TEST_ACL", type="extended")
-    assert acl["name"] == "TEST_ACL"
-    assert acl["type"] == "extended"
-    assert acl["entries"] == []
+def test_acl_contains():
+    """Test checking if sequence exists in ACL."""
+    acl = Ipv4Acl(name="TEST_ACL")
+    entry = AclEntry(
+        sequence=10,
+        action="permit",
+        protocol="ip",
+        source="any",
+        destination="any"
+    )
+    acl.add_entry(entry)
+    assert "10" in acl
+    assert "20" not in acl

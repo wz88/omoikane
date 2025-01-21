@@ -1,0 +1,29 @@
+SwitchD# show ip route
+
+IP Route Table for VRF "default"
+'*' denotes best ucast next-hop
+'**' denotes best mcast next-hop
+'[x/y]' denotes [preference/metric]
+
+10.0.0.1/32, ubest/mbest: 1/0
+    *via 192.168.20.1, Vlan20, [110/41], 00:00:10, ospf-1, intra
+10.0.0.2/32, ubest/mbest: 1/0
+    *via 192.168.30.1, Vlan30, [110/41], 00:00:10, ospf-1, intra
+10.0.0.3/32, ubest/mbest: 1/0
+    *via 192.168.20.3, Vlan20, [110/41], 00:00:10, ospf-1, intra
+10.0.0.4/32, ubest/mbest: 1/0, attached
+    *via 10.0.0.4, Lo0, [0/0], 00:00:15, local
+172.16.1.0/24, ubest/mbest: 1/0
+    *via 10.0.0.1, [200/0], 00:00:10, bgp-65004, internal, tag 65001
+172.16.2.0/24, ubest/mbest: 1/0
+    *via 10.0.0.2, [200/0], 00:00:10, bgp-65004, internal, tag 65002
+172.16.3.0/24, ubest/mbest: 1/0
+    *via 10.0.0.3, [200/0], 00:00:10, bgp-65004, internal, tag 65003
+172.16.4.0/24, ubest/mbest: 1/0
+    *via Null0, [1/0], 00:00:15, static
+192.168.20.0/24, ubest/mbest: 1/0, attached
+    *via 192.168.20.4, Vlan20, [0/0], 00:00:15, direct
+192.168.30.0/24, ubest/mbest: 1/0, attached
+    *via 192.168.30.4, Vlan30, [0/0], 00:00:15, direct
+192.168.40.0/24, ubest/mbest: 1/0, attached
+    *via 192.168.40.4, Vlan40, [0/0], 00:00:15, direct

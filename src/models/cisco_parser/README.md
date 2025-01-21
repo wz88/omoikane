@@ -10,7 +10,7 @@ pip install ciscoconfparse2 pydantic
 
 ## Overview
 
-The `CiscoRouter` class provides a comprehensive interface for parsing and managing Cisco router configurations. It handles various configuration aspects including:
+The `CiscoIOS` class provides a comprehensive interface for parsing and managing Cisco router configurations. It handles various configuration aspects including:
 
 - Basic router configuration (hostname)
 - Interfaces and VRFs
@@ -23,14 +23,14 @@ The `CiscoRouter` class provides a comprehensive interface for parsing and manag
 ## Usage
 
 ```python
-from src.models import CiscoRouter
+from models import CiscoIOS
 
 # Read configuration from file
 with open('router_config.txt', 'r') as f:
     config_text = f.read()
 
 # Create router instance
-router = CiscoRouter(config_text)
+router = CiscoIOS(config_text)
 
 # Access router configuration
 hostname = router.config.hostname
@@ -39,30 +39,6 @@ bgp_config = router.bgp_config
 ```
 
 ## Models
-
-### RouterConfig
-
-Main configuration model containing all router settings:
-
-```python
-class RouterConfig(BaseModel):
-    hostname: Optional[str] = None
-    interfaces: Dict[str, Interface] = {}
-    vrfs: Dict[str, VrfConfig] = {}
-    vlans: Dict[int, VlanConfig] = {}
-    acls: Dict[str, Acl] = {}
-    prefix_lists: Dict[str, PrefixList] = {}
-    route_maps: Dict[str, RouteMap] = {}
-    bgp: Optional[BgpConfig] = None
-    ospf: Dict[int, OspfConfig] = {}
-    snmp: SnmpConfig = SnmpConfig()
-    ntp_servers: List[NtpServer] = []
-    logging: LoggingConfig = LoggingConfig()
-    aaa: AaaConfig = AaaConfig()
-    fex: Dict[int, FexConfig] = {}
-    community_lists: Dict[str, CommunityList] = {}
-    as_path_lists: Dict[str, AsPathList] = {}
-```
 
 ### Interface Configuration
 
@@ -107,8 +83,8 @@ class BgpNeighbor(BaseModel):
 ```python
 class AclEntry(BaseModel):
     sequence: int = 0
-    action: str
-    protocol: str
+    action: Literal["permit", "deny"]
+    protocol: Literal["ip", "tcp", "udp", "icmp"]
     source_ip: str
     source_wildcard: Optional[str] = None
     destination_ip: str
@@ -118,7 +94,7 @@ class AclEntry(BaseModel):
     log: bool = False
     options: Optional[str] = None
 
-class Acl(BaseModel):
+class Ipv4Acl(BaseModel):
     type: str
     entries: List[AclEntry] = []
 ```
@@ -195,7 +171,7 @@ class OspfNetwork(BaseModel):
 
 ```python
 # Parse router configuration
-router = CiscoRouter(config_text)
+router = CiscoIOS(config_text)
 
 # Access interface configuration
 wan_interface = router.get_interface('GigabitEthernet0/0')
@@ -250,7 +226,7 @@ ip community-list expanded COMPLEX_FILTER permit ^65000:[0-9]+$
 ### Example Usage
 
 ```python
-router = CiscoRouter(config_text)
+router = CiscoIOS(config_text)
 community_lists = router.config.community_lists
 
 # Access a specific community list
@@ -275,7 +251,7 @@ ip as-path access-list 200 deny .*
 ### Example Usage
 
 ```python
-router = CiscoRouter(config_text)
+router = CiscoIOS(config_text)
 as_path_lists = router.config.as_path_lists
 
 # Access a specific AS-path list

@@ -44,7 +44,7 @@ uv pip install -e ".[dev]"
 ## Usage
 
 ```python
-from src.models import CiscoRouter
+from models import CiscoIOS
 
 # Create a router instance with config
 config = """
@@ -55,7 +55,7 @@ interface GigabitEthernet0/0
  no shutdown
 """
 
-router = CiscoRouter(config)
+router = CiscoIOS(config)
 
 # Access parsed configuration
 print(router.config.hostname)  # ROUTER-01

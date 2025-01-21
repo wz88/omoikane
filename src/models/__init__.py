@@ -1,5 +1,5 @@
 """Models for network device configurations."""
+from models.cisco_parser.ios import CiscoIOS
+from models.cisco_parser.nexus import CiscoNXOS
 
-from .cisco_parser.router import CiscoRouter, Interface, RouterConfig, VlanConfig
-
-__all__ = ['CiscoRouter', 'RouterConfig', 'Interface', 'VlanConfig']
+__all__ = ['CiscoIOS', 'CiscoNXOS']
