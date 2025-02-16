@@ -31,9 +31,9 @@ from models.base.system import (
 
 class CiscoIOS(Device):
     """Model for Cisco router."""
-    def __init__(self, config: Optional[str] = None, hostname: Optional[str] = None, routing_table: Optional[str] = None):
+    def __init__(self, config: Optional[str] = None, hostname: Optional[str] = None, rib: Optional[str] = None):
         """Initialize CiscoIOS."""
-        self.routing_table: Optional[str] = routing_table
+        self.rib: Optional[str] = rib
         self.routes: List[Route] = []
         self.interfaces: Dict[str, Interface] = {}
         self.vrfs: Dict[str, VrfConfig] = {}

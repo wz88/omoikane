@@ -37,10 +37,9 @@ from models.base.system import (
 class CiscoNXOS(Device):
     """Cisco Nexus device."""
 
-    def __init__(self, config: Optional[str] = None, hostname: Optional[str] = None, routing_table: Optional[str] = None):
+    def __init__(self, config: Optional[str] = None, hostname: Optional[str] = None, rib: Optional[str] = None):
         """Initialize the device."""
-        self.routing_table: Optional[str] = routing_table
-        self.routes: List[Route] = []
+        self.rib: Optional[str] = rib
         self.interfaces: Dict[str, Interface] = {}
         self.vrfs: Dict[str, VrfConfig] = {}
         self.vlans: Dict[str, VlanConfig] = {}
@@ -53,9 +52,9 @@ class CiscoNXOS(Device):
         return None
 
     @cached_property
-    def parse_routing(self) -> Optional[CiscoConfParse]:
-        if self.routing_table:
-            return CiscoConfParse(self.routing_table.splitlines(), syntax='nxos')
+    def parse_rib(self) -> Optional[CiscoConfParse]:
+        if self.rib:
+            return CiscoConfParse(self.rib.splitlines(), syntax='nxos')
         return None
 
     def parse_config(self) -> None:
@@ -70,6 +69,7 @@ class CiscoNXOS(Device):
         self.acls = self._parse_acls()
         self.prefix_lists = self._parse_prefix_lists()
         self.route_maps = self._parse_route_maps()
+        self.routing_tables = self._parse_routing_table()
 
     @lru_cache
     def _parse_interfaces(self) -> Dict[str, Interface]:
@@ -989,7 +989,7 @@ class CiscoNXOS(Device):
         table_name = None
         routing_tables = {}
 
-        for line in self.parse_routing.find_objects(r'^(?:IP Route Table|(?:\d+\.){3}\d+)'):
+        for line in self.parse_rib.find_objects(r'^(?:IP Route Table|(?:\d+\.){3}\d+)'):
             if (vrf_name := line.re_match(r'^IP Route Table for VRF "(\S+)"')):
                 table_name = vrf_name
                 routing_tables[table_name] = RoutingTable(vrf=table_name)
@@ -997,6 +997,7 @@ class CiscoNXOS(Device):
                 for child in line.children:
                     route = Route(
                         network=IPv4Network(subnet),
+                        vrf=table_name,
                     )
                     route_match = route_nh_regex.match(child.text)
                     if route_match:
@@ -1210,6 +1211,7 @@ class CiscoNXOS(Device):
         """Get VRF by name."""
         return self.vrfs.get(name)
 
+    @cached_property
     def interface_list(self) -> List[str]:
         """Get list of interface names."""
         return list(self.interfaces.keys())
@@ -1242,5 +1244,13 @@ class CiscoNXOS(Device):
         if not hasattr(self, '_route_maps'):
             self._route_maps = self.get_route_maps()
         return self._route_maps
+
+    @cached_property
+    def routes(self) -> List[Route]:
+        """Get all routes."""
+        all_routes = []
+        for routing_table in self.routing_tables.values():
+            all_routes.extend([route for routes in routing_table.routes.values() for route in routes])
+        return all_routes
 
 # logging.basicConfig(level=logging.DEBUG)
